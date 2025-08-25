@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+@theme {
+  /* 컬러 팔레트 */
+  --color-main: #D7C9B7;       /* Beige Cream */
+  --color-sub: #F2E8DF;        /* Warm Sand */
+  --color-accent: #A3B18A;     /* Olive Green */
+  --color-text: #3A3A3A;       /* Charcoal Grey */
+  --color-bg: #FAF7F3;         /* Soft Ivory | Mobile Background-Color */
+
+  /* 폰트 */
+  --font-paper: "Paperlogy";
+  --font-italia: "Italiana";
+}
+
+@font-face {
+  font-family: "Paperlogy";
+  src: url("/fonts/Paperlogy-6SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Italiana";
+  src: url("/fonts/Italiana-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes orbit {
+  0%   { transform: rotate(0deg) translateX(70px) rotate(0deg); }
+  50%  { transform: rotate(180deg) translateX(70px) rotate(-180deg); }
+  100% { transform: rotate(360deg) translateX(70px) rotate(-360deg); }
+}
+.animate-bob { animation: bob 2.2s ease-in-out infinite; }
+.animate-orbit { animation: orbit 3.8s linear infinite; transform-origin: center; }
+.track-gradient {
+  background: linear-gradient(90deg, rgba(255,255,255,0.15), rgba(255,255,255,0.35));
+}
+.progress-shine {
+  position: relative;
+  overflow: hidden;
+}
+.progress-shine::after {
+  content: "";
+  position: absolute; top: 0; left: -40%; height: 100%; width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+  animation: shine 1.6s linear infinite;
+}
+@keyframes shine { 0% { left: -40%; } 100% { left: 100%; } }
+
+.btn-hover-invert {
+  @apply hover:bg-accent hover:text-bg;
+}
