@@ -1,29 +1,102 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AiOutlineAppstore } from "react-icons/ai";
 import { FiSettings, FiFileText, FiSearch } from "react-icons/fi";
 import { IoArrowUpCircleOutline } from "react-icons/io5";
+import { generateFont, getDownloadUrl } from "./api/MonoGlyphAPI";
 
 export default function Main() {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"home" | "loading">("home");
   const [query, setQuery] = useState("");
-  const inputRef = useRef<HTMLInputElement | null>(null);
 
+  // 진행/결과/오류 상태
+  const [progress, setProgress] = useState<number>(0);
+  const [message, setMessage] = useState<string>("대기 중...");
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // 참조
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const esRef = useRef<EventSource | null>(null);
+
+  /** 폰트 생성 시작 */
   function beginLoading() {
     if (mode === "loading") return;
+    if (!query.trim()) {
+      inputRef.current?.focus();
+      return;
+    }
+
+    // 초기화
     setMode("loading");
+    setErrorMsg(null);
+    setDownloadUrl(null);
+    setProgress(0);
+    setMessage("작업 시작 중...");
+
+    // 이전 연결 정리
+    try {
+      esRef.current?.close();
+    } catch {}
+    esRef.current = null;
+
+    // 폰트 생성 요청
+    const es = generateFont(
+      query,
+      // 진행 이벤트
+      (event) => {
+        setProgress(event.progress);
+        setMessage(event.message);
+      },
+      // 완료 이벤트
+      (event) => {
+        setProgress(100);
+        setMessage(event.message);
+        const url = getDownloadUrl(event.work_dir, event.filename);
+        setDownloadUrl(url);
+      },
+      // 오류 이벤트
+      (event) => {
+        setErrorMsg(event.error);
+        setMessage("오류 발생");
+      }
+    );
+
+    esRef.current = es;
   }
 
+  /** Enter 키로 시작 */
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") {
-      beginLoading();
-    }
+    if (e.key === "Enter") beginLoading();
   }
+
+  /** 뒤로가기 */
+  function handleBack() {
+    try {
+      esRef.current?.close();
+    } catch {}
+    esRef.current = null;
+    setMode("home");
+    setProgress(0);
+    setMessage("대기 중...");
+    setDownloadUrl(null);
+    setErrorMsg(null);
+  }
+
+  /** 언마운트 시 정리 */
+  useEffect(() => {
+    return () => {
+      try {
+        esRef.current?.close();
+      } catch {}
+      esRef.current = null;
+    };
+  }, []);
 
   return (
-    <div className={["min-h-screen bg-bg", "[--sw:22vw]"].join(" ")}>
+    <div className="min-h-screen bg-bg [--sw:22vw]">
       <aside
         aria-hidden={!open}
         className={[
@@ -40,7 +113,7 @@ export default function Main() {
         </div>
 
         <div className="pt-5 flex flex-col pl-[1vw] font-paper text-[1.4vw]">
-          <div>✨ 모노 전용 폰트 </div>
+          <div> </div>
         </div>
 
         <div className="absolute bottom-0 w-full p-4 flex flex-col items-center text-center font-paper">
@@ -77,7 +150,16 @@ export default function Main() {
             onStart={beginLoading}
           />
         ) : (
-          <LoadingView onBack={() => setMode("home")} />
+          <LoadingView
+            onBack={handleBack}
+            downloadUrl={downloadUrl}
+            errorMsg={errorMsg}
+            message={message}
+            progress={progress}
+            onDownload={() => {
+              if (downloadUrl) window.open(downloadUrl, "_blank");
+            }}
+          />
         )}
       </main>
     </div>
@@ -105,18 +187,12 @@ function HomeView({
     <div className="w-full max-w-[50vw] min-h-screen mx-auto px-[3vw] grid place-items-center">
       <div className="w-full">
         <h1 className="text-center font-paper leading-tight text-[2.34vw] text-text">
-          "원하는 프롬프트로
+          "원하는 스타일의
           <br />
           폰트를 자유롭게 만들어보세요"
         </h1>
 
-        <div
-          className="
-            mx-auto mt-[2vh] flex items-center justify-between
-            h-[2.6vw] w-[33.85vw]
-            bg-sub text-main rounded-xl px-[0.63vw] shadow-md
-          "
-        >
+        <div className="mx-auto mt-[2vh] flex items-center justify-between h-[2.6vw] w-[33.85vw] bg-sub text-main rounded-xl px-[0.63vw] shadow-md">
           <div className="flex items-center gap-[0.42vw]">
             <button
               onClick={() => setOpen((v) => !v)}
@@ -136,7 +212,7 @@ function HomeView({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="예) '손글씨 같은 산세리프, 굵게'"
+            placeholder="예) '굵게, 얇게, 고딕, 명조 등과 같이'"
             type="text"
             className="flex-1 mx-[0.83vw] text-[0.78vw] font-paper text-text outline-none bg-transparent placeholder:text-text/40"
           />
@@ -153,61 +229,21 @@ function HomeView({
   );
 }
 
-function LoadingView({ onBack }: { onBack: () => void }) {
-  const [code, setCode] = useState<number>(0);
-
-  const { message, pct } = useMemo(() => {
-    const map: Record<number, string> = {
-      0: "대기 중…",
-      200: "프롬프트 분석 중",
-      400: "글리프 생성 중",
-      600: "커닝·힌팅 최적화",
-      800: "미리보기 렌더링",
-      1000: "TTF 패키징 완료",
-    };
-    const keys = Object.keys(map)
-      .map(Number)
-      .sort((a, b) => a - b);
-    const label = map[code] ?? map[nearest(keys, code)];
-    const maxKey = Math.max(...keys);
-    const normalized = Math.max(
-      0,
-      Math.min(100, Math.round((code / maxKey) * 100))
-    );
-    return { message: label, pct: normalized };
-  }, [code]);
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const custom = e as CustomEvent<number>;
-      if (typeof custom.detail === "number") setCode(custom.detail);
-    };
-    window.addEventListener("font-progress", handler as EventListener);
-    return () =>
-      window.removeEventListener("font-progress", handler as EventListener);
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    const milestones = [200, 400, 600, 800, 1000];
-    let i = 0;
-    const t = setInterval(() => {
-      if (!mounted) return;
-      setCode((prev) => (prev >= 1000 ? prev : milestones[i++] ?? 1000));
-    }, 1200);
-    return () => {
-      mounted = false;
-      clearInterval(t);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (code >= 1000) {
-      const tm = setTimeout(() => {}, 800);
-      return () => clearTimeout(tm);
-    }
-  }, [code]);
-
+function LoadingView({
+  onBack,
+  downloadUrl,
+  errorMsg,
+  message,
+  progress,
+  onDownload,
+}: {
+  onBack: () => void;
+  downloadUrl: string | null;
+  errorMsg: string | null;
+  message: string;
+  progress: number;
+  onDownload: () => void;
+}) {
   return (
     <div className="min-h-screen grid place-items-center">
       <div className="w-full max-w-[40vw] px-[2vw] py-[2.6vh] rounded-2xl bg-sub/70 shadow-xl backdrop-blur font-paper">
@@ -221,47 +257,65 @@ function LoadingView({ onBack }: { onBack: () => void }) {
         </div>
 
         <div className="mt-4 text-center">
-          <p className="text-text text-[1.05vw] font-medium leading-tight">
-            {message}
-          </p>
-          <p className="text-text/60 text-[0.78vw] mt-1">진행률 {pct}%</p>
+          {errorMsg ? (
+            <>
+              <p className="text-red-400 text-[1.05vw] font-medium leading-tight">
+                오류: {errorMsg}
+              </p>
+              <p className="text-text/60 text-[0.78vw] mt-1">
+                서버 로그를 확인하세요.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-text text-[1.05vw] font-medium leading-tight">
+                {message}
+              </p>
+              <p className="text-text/60 text-[0.78vw] mt-1">
+                진행률 {progress}%
+              </p>
+            </>
+          )}
         </div>
 
-        <div className="mt-4">
-          <div className="w-full h-3 rounded-full track-gradient/40 bg-white/10 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-text/70 progress-shine"
-              style={{ width: `${pct}%`, transition: "width 500ms ease" }}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={pct}
-              role="progressbar"
-            />
+        {!errorMsg && (
+          <div className="mt-4">
+            <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-text/70 transition-all duration-500"
+                style={{ width: `${progress}%` }}
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progress}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="mt-6 flex items-center justify-center gap-3">
           <button
             onClick={onBack}
-            className="btn-hover-invert px-4 py-2 rounded-lg bg-bg text-text text-sm shadow transition-colors duration-500 ease-in-out "
+            className="btn-hover-invert px-4 py-2 rounded-lg bg-bg text-text text-sm shadow transition-colors duration-500 ease-in-out"
           >
             돌아가기
           </button>
-          {code >= 1000 && (
-            <button className="btn-hover-invert px-4 py-2 rounded-lg bg-bg text-text text-sm shadow transition-colors duration-500 ease-in-out active:opacity-80">
-              TTF 다운로드
-            </button>
-          )}
+
+          <button
+            disabled={!downloadUrl || !!errorMsg}
+            onClick={onDownload}
+            className={[
+              "btn-hover-invert px-4 py-2 rounded-lg text-sm shadow transition-colors duration-500 ease-in-out",
+              downloadUrl && !errorMsg
+                ? "bg-bg text-text"
+                : "bg-bg/50 text-text/40 cursor-not-allowed",
+            ].join(" ")}
+            title={downloadUrl ? "생성된 TTF 다운로드" : "생성 중..."}
+          >
+            TTF 다운로드
+          </button>
         </div>
       </div>
     </div>
-  );
-}
-
-function nearest(arr: number[], value: number) {
-  return arr.reduce(
-    (prev, curr) =>
-      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev,
-    arr[0] ?? 0
   );
 }
