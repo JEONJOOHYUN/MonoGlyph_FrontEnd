@@ -4,172 +4,55 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AiOutlineAppstore } from "react-icons/ai";
 import { FiSettings, FiFileText, FiSearch } from "react-icons/fi";
 import { IoArrowUpCircleOutline } from "react-icons/io5";
-
-/** 서버 주소
- *  기본값: http://localhost:8000
- *  환경변수로 바꾸려면 NEXT_PUBLIC_API_URL 사용 (trailing slash 제거)
- */
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") || "http://localhost:8000";
-
-/** SSE 이벤트 payload 타입 */
-type ProgressEvt = { type: "progress"; code: number; message?: string };
-type DoneEvt = {
-  type: "done";
-  code?: number;
-  message?: string;
-  download_url: string;
-  filename?: string;
-};
-type ErrorEvt = {
-  type: "error";
-  message: string;
-  returncode?: number;
-  stderr_tail?: string;
-};
+import { useFontGeneration } from "../hooks/useFontGeneration";
 
 export default function Main() {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"home" | "loading">("home");
   const [query, setQuery] = useState("");
-
-  // 진행/결과/오류 상태
-  const [code, setCode] = useState<number>(0);
-  const [serverMessage, setServerMessage] = useState<string | null>(null);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isRequesting, setIsRequesting] = useState(false);
-
-  // 참조들
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const esRef = useRef<EventSource | null>(null);
 
-  /** 진행 단계 라벨 폴백 맵 (서버 메시지가 없을 때 사용) */
-  const stepLabel = useMemo(
-    () =>
-      ({
-        0: "대기 중…",
-        200: "프롬프트 분석 및 생성중",
-        400: "생성된 글자 분석중",
-        600: "전체 글자 생성중",
-        800: "폰트 파일 생성중",
-        1000: "TTF 생성 완료",
-      } as Record<number, string>),
-    []
-  );
+  const {
+    isLoading,
+    progress,
+    message,
+    error,
+    downloadUrl,
+    generateFont,
+    downloadGeneratedFont,
+    reset,
+  } = useFontGeneration();
 
-  /** 퍼센트 계산 (코드 스냅샷 기준 구간 맵핑) */
-  const pct = useMemo(() => {
-    const keys = [0, 200, 400, 600, 800, 1000];
-    const maxKey = 1000;
-    const p = Math.max(0, Math.min(100, Math.round((code / maxKey) * 100)));
-    // 0,200,400...로 점프하므로 선형으로 보여도 직관적임
-    return p;
-  }, [code]);
+  async function beginLoading() {
+    if (mode === "loading" || !query.trim()) return;
 
-  /** 화면에 보여줄 현재 메시지 (서버 제공 > 폴백) */
-  const message = serverMessage ?? stepLabel[code] ?? stepLabel[nearest([0, 200, 400, 600, 800, 1000], code)];
-
-  /** SSE 연결 시작 */
-  function beginLoading() {
-    if (mode === "loading") return;
-    if (!query.trim()) {
-      inputRef.current?.focus();
-      return;
-    }
-
-    // 초기화
     setMode("loading");
-    setErrorMsg(null);
-    setDownloadUrl(null);
-    setServerMessage(null);
-    setCode(0);
-    setIsRequesting(true);
 
-    // 이전 SSE 정리
     try {
-      esRef.current?.close();
-    } catch {}
-    esRef.current = null;
-
-    // SSE 연결
-    const url = `${API_BASE}/run/stream?prompt=${encodeURIComponent(query)}`;
-    // credentials가 필요한 경우(CORS allow_credentials=True) withCredentials 옵션 사용
-    const es = new EventSource(url, { withCredentials: true });
-    esRef.current = es;
-
-    // 진행 이벤트
-    es.addEventListener("progress", (evt) => {
-      try {
-        const data: ProgressEvt = JSON.parse((evt as MessageEvent).data);
-        if (typeof data.code === "number") setCode((prev) => (data.code > prev ? data.code : prev));
-        if (data.message) setServerMessage(data.message);
-      } catch (e) {
-        // JSON 파싱 실패는 무시
-      }
-    });
-
-    // 완료 이벤트
-    es.addEventListener("done", (evt) => {
-      try {
-        const data: DoneEvt = JSON.parse((evt as MessageEvent).data);
-        setCode(data.code ?? 1000);
-        if (data.message) setServerMessage(data.message);
-        if (data.download_url) setDownloadUrl(data.download_url);
-      } finally {
-        setIsRequesting(false);
-        es.close();
-      }
-    });
-
-    // 오류 이벤트
-    es.addEventListener("error", (evt) => {
-      try {
-        // 서버가 error 이벤트로 JSON을 보냄
-        // 일부 브라우저는 재연결을 시도할 수 있으니 명시적으로 닫아줌
-        const raw = (evt as MessageEvent).data as string | undefined;
-        let parsed: ErrorEvt | null = null;
-        if (raw) {
-          try {
-            parsed = JSON.parse(raw);
-          } catch {}
-        }
-        setErrorMsg(parsed?.message || "Pipeline failed or connection error");
-      } finally {
-        setIsRequesting(false);
-        es.close();
-      }
-    });
+      await generateFont({
+        prompt: query.trim(),
+        options: {
+          format: "ttf",
+          size: "medium",
+        },
+      });
+    } catch (err) {
+      console.error("Font generation failed:", err);
+      // 에러 발생 시 홈으로 돌아가기
+      setMode("home");
+    }
   }
 
-  /** Enter 키로 시작 */
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") beginLoading();
+    if (e.key === "Enter") {
+      beginLoading();
+    }
   }
 
-  /** 뒤로가기: SSE 연결 정리 */
   function handleBack() {
-    try {
-      esRef.current?.close();
-    } catch {}
-    esRef.current = null;
-    setIsRequesting(false);
+    reset();
     setMode("home");
-    setCode(0);
-    setServerMessage(null);
-    setDownloadUrl(null);
-    setErrorMsg(null);
   }
-
-  /** 언마운트 시 SSE 정리 */
-  useEffect(() => {
-    return () => {
-      try {
-        esRef.current?.close();
-      } catch {}
-      esRef.current = null;
-    };
-  }, []);
 
   return (
     <div className={["min-h-screen bg-bg", "[--sw:22vw]"].join(" ")}>
@@ -189,11 +72,15 @@ export default function Main() {
         </div>
 
         <div className="pt-5 flex flex-col pl-[1vw] font-paper text-[1.4vw]">
-          <div> </div>
+          <div>✨ 모노 전용 폰트 </div>
         </div>
 
         <div className="absolute bottom-0 w-full p-4 flex flex-col items-center text-center font-paper">
-          <img src="/images/문의.png" alt="문의하기" className="w-20 h-20 mb-2" />
+          <img
+            src="/images/문의.png"
+            alt="문의하기"
+            className="w-20 h-20 mb-2"
+          />
           <p className="text-sm text-text mb-3">
             버그가 발생하거나 이용 중 불편하신 사항을
             <br />
@@ -205,7 +92,12 @@ export default function Main() {
         </div>
       </aside>
 
-      <main className={["transition-[padding] duration-300 ease-out", open ? "pl-[var(--sw)]" : "pl-0"].join(" ")}>
+      <main
+        className={[
+          "transition-[padding] duration-300 ease-out",
+          open ? "pl-[var(--sw)]" : "pl-0",
+        ].join(" ")}
+      >
         {mode === "home" ? (
           <HomeView
             open={open}
@@ -219,14 +111,11 @@ export default function Main() {
         ) : (
           <LoadingView
             onBack={handleBack}
-            downloadUrl={downloadUrl}
-            isRequesting={isRequesting}
-            errorMsg={errorMsg}
+            progress={progress}
             message={message}
-            pct={pct}
-            onDownload={() => {
-              if (downloadUrl) window.open(downloadUrl, "_blank");
-            }}
+            error={error}
+            downloadUrl={downloadUrl}
+            onDownload={downloadGeneratedFont}
           />
         )}
       </main>
@@ -255,7 +144,7 @@ function HomeView({
     <div className="w-full max-w-[50vw] min-h-screen mx-auto px-[3vw] grid place-items-center">
       <div className="w-full">
         <h1 className="text-center font-paper leading-tight text-[2.34vw] text-text">
-          "원하는 스타일의
+          "원하는 프롬프트로
           <br />
           폰트를 자유롭게 만들어보세요"
         </h1>
@@ -268,7 +157,10 @@ function HomeView({
           "
         >
           <div className="flex items-center gap-[0.42vw]">
-            <button onClick={() => setOpen((v) => !v)} aria-label="사이드바 토글">
+            <button
+              onClick={() => setOpen((v) => !v)}
+              aria-label="사이드바 토글"
+            >
               <AiOutlineAppstore
                 className={[
                   "text-[1.56vw] cursor-pointer hover:text-accent transition-colors duration-500 ease-in-out",
@@ -283,7 +175,7 @@ function HomeView({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="예) '굵게, 얇게, 고딕, 명조 등과 같이'"
+            placeholder="예) '손글씨 같은 산세리프, 굵게'"
             type="text"
             className="flex-1 mx-[0.83vw] text-[0.78vw] font-paper text-text outline-none bg-transparent placeholder:text-text/40"
           />
@@ -302,21 +194,54 @@ function HomeView({
 
 function LoadingView({
   onBack,
-  downloadUrl,
-  isRequesting,
-  errorMsg,
+  progress,
   message,
-  pct,
+  error,
+  downloadUrl,
   onDownload,
 }: {
   onBack: () => void;
-  downloadUrl: string | null;
-  isRequesting: boolean;
-  errorMsg: string | null;
+  progress: number;
   message: string;
-  pct: number;
+  error: string | null;
+  downloadUrl: string | null;
   onDownload: () => void;
 }) {
+  const [code, setCode] = useState<number>(0);
+
+  // 기존 이벤트 리스너 유지 (호환성을 위해)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const custom = e as CustomEvent<number>;
+      if (typeof custom.detail === "number") setCode(custom.detail);
+    };
+    window.addEventListener("font-progress", handler as EventListener);
+    return () =>
+      window.removeEventListener("font-progress", handler as EventListener);
+  }, []);
+
+  // API에서 받은 progress 사용, 없으면 기존 로직 사용
+  const displayProgress =
+    progress > 0
+      ? progress
+      : Math.max(0, Math.min(100, Math.round((code / 1000) * 100)));
+  const displayMessage =
+    message ||
+    (() => {
+      const map: Record<number, string> = {
+        0: "대기 중…",
+        200: "프롬프트 분석 중",
+        400: "글리프 생성 중",
+        600: "커닝·힌팅 최적화",
+        800: "미리보기 렌더링",
+        1000: "TTF 패키징 완료",
+      };
+      const keys = Object.keys(map)
+        .map(Number)
+        .sort((a, b) => a - b);
+      return map[code] ?? map[nearest(keys, code)];
+    })();
+
   return (
     <div className="min-h-screen grid place-items-center">
       <div className="w-full max-w-[40vw] px-[2vw] py-[2.6vh] rounded-2xl bg-sub/70 shadow-xl backdrop-blur font-paper">
@@ -330,33 +255,31 @@ function LoadingView({
         </div>
 
         <div className="mt-4 text-center">
-          {errorMsg ? (
-            <>
-              <p className="text-red-400 text-[1.05vw] font-medium leading-tight">오류: {errorMsg}</p>
-              <p className="text-text/60 text-[0.78vw] mt-1">서버 로그(server.py)와 CORS/SSE 설정을 확인하세요.</p>
-            </>
-          ) : (
-            <>
-              <p className="text-text text-[1.05vw] font-medium leading-tight">{message}</p>
-              <p className="text-text/60 text-[0.78vw] mt-1">진행률 {pct}%</p>
-            </>
-          )}
+          <p className="text-text text-[1.05vw] font-medium leading-tight">
+            {error ? "오류가 발생했습니다" : displayMessage}
+          </p>
+          <p className="text-text/60 text-[0.78vw] mt-1">
+            {error ? error : `진행률 ${displayProgress}%`}
+          </p>
         </div>
 
-        {!errorMsg && (
-          <div className="mt-4">
-            <div className="w-full h-3 rounded-full track-gradient/40 bg-white/10 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-text/70 progress-shine"
-                style={{ width: `${pct}%`, transition: "width 500ms ease" }}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={pct}
-                role="progressbar"
-              />
-            </div>
+        <div className="mt-4">
+          <div className="w-full h-3 rounded-full track-gradient/40 bg-white/10 overflow-hidden">
+            <div
+              className={`h-full rounded-full progress-shine ${
+                error ? "bg-red-500/70" : "bg-text/70"
+              }`}
+              style={{
+                width: `${error ? 100 : displayProgress}%`,
+                transition: "width 500ms ease",
+              }}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={displayProgress}
+              role="progressbar"
+            />
           </div>
-        )}
+        </div>
 
         <div className="mt-6 flex items-center justify-center gap-3">
           <button
@@ -365,19 +288,14 @@ function LoadingView({
           >
             돌아가기
           </button>
-
-          {/* 링크가 도착하면 활성화 */}
-          <button
-            disabled={!downloadUrl || !!errorMsg || isRequesting}
-            onClick={onDownload}
-            className={[
-              "btn-hover-invert px-4 py-2 rounded-lg text-sm shadow transition-colors duration-500 ease-in-out active:opacity-80",
-              downloadUrl && !errorMsg && !isRequesting ? "bg-bg text-text" : "bg-bg/50 text-text/40 cursor-not-allowed",
-            ].join(" ")}
-            title={downloadUrl ? "생성된 TTF 다운로드" : "생성 중..."}
-          >
-            TTF 다운로드
-          </button>
+          {(displayProgress >= 100 || downloadUrl) && !error && (
+            <button
+              onClick={onDownload}
+              className="btn-hover-invert px-4 py-2 rounded-lg bg-bg text-text text-sm shadow transition-colors duration-500 ease-in-out active:opacity-80"
+            >
+              TTF 다운로드
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -385,5 +303,9 @@ function LoadingView({
 }
 
 function nearest(arr: number[], value: number) {
-  return arr.reduce((prev, curr) => (Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev), arr[0] ?? 0);
+  return arr.reduce(
+    (prev, curr) =>
+      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev,
+    arr[0] ?? 0
+  );
 }
