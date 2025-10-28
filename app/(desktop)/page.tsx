@@ -189,7 +189,7 @@ export default function Main() {
         </div>
 
         <div className="pt-5 flex flex-col pl-[1vw] font-paper text-[1.4vw]">
-          <div>✨ 모노 전용 폰트 </div>
+          <div> </div>
         </div>
 
         <div className="absolute bottom-0 w-full p-4 flex flex-col items-center text-center font-paper">
@@ -255,7 +255,7 @@ function HomeView({
     <div className="w-full max-w-[50vw] min-h-screen mx-auto px-[3vw] grid place-items-center">
       <div className="w-full">
         <h1 className="text-center font-paper leading-tight text-[2.34vw] text-text">
-          "원하는 프롬프트로
+          "원하는 스타일의
           <br />
           폰트를 자유롭게 만들어보세요"
         </h1>
@@ -283,7 +283,7 @@ function HomeView({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="예) '손글씨 같은 산세리프, 굵게'"
+            placeholder="예) '굵게, 얇게, 고딕, 명조 등과 같이'"
             type="text"
             className="flex-1 mx-[0.83vw] text-[0.78vw] font-paper text-text outline-none bg-transparent placeholder:text-text/40"
           />
