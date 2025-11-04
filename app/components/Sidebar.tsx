@@ -1,3 +1,6 @@
+import Image from "next/image";
+import Link from "next/link";
+
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
@@ -13,7 +16,7 @@ export default function Sidebar({
     <div className="fixed inset-y-0 left-0 z-40 pointer-events-none flex items-center">
       <div className="flex flex-col p-6 gap-4 w-64 lg:w-72 xl:w-80 pointer-events-auto">
         {/* MonoGlyph 로고 - 홈으로 이동 */}
-        <a
+        <Link
           href="/"
           className={[
             "transform transition-all duration-300 hover:opacity-80",
@@ -27,7 +30,7 @@ export default function Sidebar({
               Intelligence in Every Stroke
             </span>
           </div>
-        </a>
+        </Link>
 
         {/* 프로젝트 소개 버튼 */}
         <a
@@ -41,9 +44,11 @@ export default function Sidebar({
           style={{ transitionDelay: open ? "50ms" : "150ms" }}
         >
           <div className="flex items-center justify-start gap-3 whitespace-nowrap h-full">
-            <img
+            <Image
               src="/images/Introduction.svg"
               alt="프로젝트 소개"
+              width={40}
+              height={40}
               className="w-10 h-10 flex-shrink-0 transition-all"
             />
             <span className="text-lg font-paper text-text opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -64,9 +69,11 @@ export default function Sidebar({
           style={{ transitionDelay: open ? "100ms" : "100ms" }}
         >
           <div className="flex items-center justify-start gap-3 whitespace-nowrap h-full">
-            <img
+            <Image
               src="/images/Guide.svg"
               alt="가이드"
+              width={40}
+              height={40}
               className="w-10 h-10 flex-shrink-0 transition-all"
             />
             <span className="text-lg font-paper text-text opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -87,9 +94,11 @@ export default function Sidebar({
           style={{ transitionDelay: open ? "150ms" : "50ms" }}
         >
           <div className="flex items-center justify-start gap-3 whitespace-nowrap h-full">
-            <img
+            <Image
               src="/images/Inquiry.svg"
               alt="문의하기"
+              width={40}
+              height={40}
               className="w-10 h-10 flex-shrink-0 transition-all"
             />
             <span className="text-lg font-paper text-text opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -110,9 +119,11 @@ export default function Sidebar({
           style={{ transitionDelay: open ? "175ms" : "25ms" }}
         >
           <div className="flex items-center justify-start gap-3 whitespace-nowrap h-full">
-            <img
+            <Image
               src="/images/admin.svg"
               alt="관리자"
+              width={40}
+              height={40}
               className="w-10 h-10 flex-shrink-0 transition-all"
             />
             <span className="text-lg font-paper text-text opacity-0 group-hover:opacity-100 transition-opacity duration-300">

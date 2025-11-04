@@ -72,7 +72,7 @@ export function generateFont(
 
           for (const line of lines) {
             if (line.startsWith("event:")) {
-              const eventType = line.substring(6).trim();
+              // const eventType = line.substring(6).trim();
               continue;
             }
 

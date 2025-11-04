@@ -24,9 +24,9 @@ export default function HomeView({
     <div className="w-full max-w-2xl lg:max-w-3xl xl:max-w-4xl min-h-screen mx-auto px-6 md:px-8 lg:px-12 grid place-items-center">
       <div className="w-full">
         <h1 className="text-center font-paper leading-tight text-2xl md:text-3xl lg:text-4xl text-text">
-          "원하는 스타일의
+          &ldquo;원하는 스타일의
           <br />
-          폰트를 자유롭게 만들어보세요"
+          폰트를 자유롭게 만들어보세요&rdquo;
         </h1>
 
         <div className="mx-auto mt-6 flex items-center justify-between h-12 md:h-14 lg:h-16 max-w-xl lg:max-w-2xl bg-sub text-main rounded-xl px-3 md:px-4 shadow-md">
