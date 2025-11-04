@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import axios from "axios";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -12,26 +13,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(imageUrl, {
+    const response = await axios.get(imageUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0",
       },
+      responseType: "arraybuffer",
     });
 
-    if (!response.ok) {
-      console.error(
-        `Failed to fetch image: ${response.status} ${response.statusText}`
-      );
-      return NextResponse.json(
-        { error: `Failed to fetch image: ${response.statusText}` },
-        { status: response.status }
-      );
-    }
+    const contentType = response.headers["content-type"] || "image/png";
 
-    const contentType = response.headers.get("content-type") || "image/png";
-    const imageBuffer = await response.arrayBuffer();
-
-    return new NextResponse(imageBuffer, {
+    return new NextResponse(response.data, {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=31536000, immutable",
@@ -39,9 +30,17 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error proxying image:", error);
-    return NextResponse.json(
-      { error: "Failed to proxy image" },
-      { status: 500 }
-    );
+
+    const errorMessage =
+      axios.isAxiosError(error) && error.response
+        ? `Failed to fetch image: ${error.response.statusText || error.message}`
+        : "Failed to proxy image";
+
+    const status =
+      axios.isAxiosError(error) && error.response?.status
+        ? error.response.status
+        : 500;
+
+    return NextResponse.json({ error: errorMessage }, { status });
   }
 }
