@@ -2,9 +2,17 @@
  * MonoGlyph Font Generator API
  */
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
-  "http://localhost:8000";
+const API_BASE = (
+  process.env.NEXT_PUBLIC_FONT_GENERATOR_API_URL ||
+  process.env.FONT_GENERATOR_API_URL ||
+  ""
+).replace(/\/+$/, "");
+
+if (!API_BASE) {
+  throw new Error(
+    "Font Generator API URL is not configured. Please set NEXT_PUBLIC_FONT_GENERATOR_API_URL or FONT_GENERATOR_API_URL in your environment variables."
+  );
+}
 
 // 타입 정의
 export type ProgressEvent = {

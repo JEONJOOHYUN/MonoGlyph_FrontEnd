@@ -99,19 +99,8 @@ export default function Sidebar({
         </button>
 
         {/* 관리자 페이지 버튼 */}
-        <button
-          onClick={() => {
-            const confirmed =
-              window.confirm("관리자 페이지로 이동하시겠습니까?");
-            if (confirmed) {
-              const password = prompt("비밀번호를 입력하세요:");
-              if (password === "admin1234") {
-                window.location.href = "http://localhost:3001";
-              } else if (password !== null) {
-                alert("비밀번호가 일치하지 않습니다.");
-              }
-            }
-          }}
+        <a
+          href="/admin"
           className={[
             "p-3 rounded-full border-2 border-text/20 bg-sub shadow-lg hover:bg-sub/80 hover:border-accent transition-all duration-300 group overflow-hidden",
             "transform hover:rounded-3xl",
@@ -130,7 +119,7 @@ export default function Sidebar({
               관리자 페이지
             </span>
           </div>
-        </button>
+        </a>
 
         {/* X 닫기 버튼 */}
         <button
