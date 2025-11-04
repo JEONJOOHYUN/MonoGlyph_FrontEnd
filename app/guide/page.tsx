@@ -120,7 +120,7 @@ export default function GuidePage() {
           <div className="pl-4 py-3 border-l-2 border-accent/30 bg-bg/50 rounded-r-lg">
             <p className="text-sm text-text/60 mb-1">💡 예시</p>
             <p className="text-text italic">
-              "MMORPG에서 사용할 중세시대 느낌의 글씨체 폰트"
+              &ldquo;MMORPG에서 사용할 중세시대 느낌의 글씨체 폰트&rdquo;
             </p>
           </div>
 

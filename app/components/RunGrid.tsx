@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import RunCard from "./RunCard";
 import { loadAllRunSummaries, RunSummary } from "../utils/runLoader";
 import SearchBar from "./SearchBar";
@@ -11,11 +13,7 @@ import {
 } from "../constants/templates";
 import { PAGE_SIZE } from "../constants/pagination";
 
-interface RunGridProps {
-  onRunSelect?: (runId: string) => void;
-}
-
-export default function RunGrid({ onRunSelect }: RunGridProps) {
+export default function RunGrid() {
   const [allRuns, setAllRuns] = useState<RunSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -131,9 +129,11 @@ export default function RunGrid({ onRunSelect }: RunGridProps) {
     <div>
       {/* 로고 */}
       <div className="ml-[-18px] flex items-center gap-3">
-        <img
+        <Image
           src="/images/MainLogo.svg"
           alt="Main Logo"
+          width={100}
+          height={100}
           className="w-25 h-25 object-contain"
         />
 
@@ -151,7 +151,7 @@ export default function RunGrid({ onRunSelect }: RunGridProps) {
             onSearch={handleSearch}
           />
         </div>
-        <a
+        <Link
           href="/"
           className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-[#8a9d7a] text-white rounded-lg shadow-md transition-colors duration-200 whitespace-nowrap"
         >
@@ -169,7 +169,7 @@ export default function RunGrid({ onRunSelect }: RunGridProps) {
             />
           </svg>
           <span className="font-medium">유저 페이지</span>
-        </a>
+        </Link>
       </div>
 
       {/* Font Preview Text Input */}

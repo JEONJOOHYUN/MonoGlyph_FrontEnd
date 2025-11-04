@@ -1,4 +1,40 @@
-import { RunResponse } from "../types/run";
+interface StepData {
+  stepName: string;
+  durationSec: number;
+  ok: boolean;
+  imageCount: number;
+}
+
+interface ImageData {
+  id: string;
+  filePath: string;
+}
+
+interface RunData {
+  runId: string;
+  startedAt: string;
+  endedAt: string;
+  totalDurationSec: number;
+  ttf_output?: string;
+  ttfOutput?: string;
+}
+
+interface PromptData {
+  name: string;
+}
+
+interface SummaryData {
+  ttf_output?: string;
+}
+
+interface RunItem {
+  run: RunData;
+  prompt: PromptData;
+  steps: StepData[];
+  images?: ImageData[];
+  summary?: SummaryData;
+  ttf_output?: string;
+}
 
 export interface RunSummary {
   runId: string;
@@ -39,8 +75,8 @@ export async function loadAllRunSummaries(): Promise<RunSummary[]> {
 
     // 각 항목을 RunSummary 형식으로 변환
     const summaries: RunSummary[] = dataArray
-      .filter((item: any) => item && item.run && item.prompt && item.steps)
-      .map((item: any) => {
+      .filter((item: RunItem) => item && item.run && item.prompt && item.steps)
+      .map((item: RunItem) => {
         const ttfOutput =
           item.summary?.ttf_output ||
           item.ttf_output ||
@@ -53,28 +89,29 @@ export async function loadAllRunSummaries(): Promise<RunSummary[]> {
           startedAt: item.run.startedAt,
           endedAt: item.run.endedAt,
           totalDurationSec: item.run.totalDurationSec,
-          ok: item.steps.every((step: any) => step.ok),
+          ok: item.steps.every((step: StepData) => step.ok),
           stepsCount: item.steps.length,
-          successfulSteps: item.steps.filter((step: any) => step.ok).length,
-          failedSteps: item.steps.filter((step: any) => !step.ok).length,
+          successfulSteps: item.steps.filter((step: StepData) => step.ok)
+            .length,
+          failedSteps: item.steps.filter((step: StepData) => !step.ok).length,
           totalStepsDuration: item.steps.reduce(
-            (sum: number, step: any) => sum + step.durationSec,
+            (sum: number, step: StepData) => sum + step.durationSec,
             0
           ),
           avgStepDuration:
             item.steps.length > 0
               ? item.steps.reduce(
-                  (sum: number, step: any) => sum + step.durationSec,
+                  (sum: number, step: StepData) => sum + step.durationSec,
                   0
                 ) / item.steps.length
               : 0,
-          stepsDuration: item.steps.map((step: any) => ({
+          stepsDuration: item.steps.map((step: StepData) => ({
             name: step.stepName,
             durationSec: step.durationSec,
             ok: step.ok,
             imageCount: step.imageCount,
           })),
-          images: (item.images || []).map((img: any) => ({
+          images: (item.images || []).map((img: ImageData) => ({
             id: img.id,
             filePath: img.filePath,
           })),

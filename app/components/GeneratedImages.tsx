@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 interface GeneratedImagesProps {
   images: Array<{ id: string; filePath: string }>;
@@ -42,9 +43,11 @@ export default function GeneratedImages({ images }: GeneratedImagesProps) {
               className="relative group rounded-md overflow-hidden border border-gray-200 bg-white"
               title={img.id}
             >
-              <img
+              <Image
                 src={img.filePath}
                 alt={img.id}
+                width={100}
+                height={100}
                 className="w-full aspect-square object-contain transition-transform duration-200 group-hover:scale-105"
                 loading="lazy"
                 onError={() => handleImageError(img.id)}
